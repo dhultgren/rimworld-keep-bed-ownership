@@ -10,6 +10,7 @@ namespace KeepBedOwnership.Patch
     {
         public static List<Building_Bed> PawnBedsOnMap(Pawn ___pawn, Map map)
         {
+            if (map == null) return new List<Building_Bed>();
             return map.listerThings.ThingsInGroup(ThingRequestGroup.Bed)
                 .Select(t => t as Building_Bed)
                 .Where(b => b.OwnersForReading.Contains(___pawn))
@@ -58,7 +59,8 @@ namespace KeepBedOwnership.Patch
             }
 
             // Remove other pawn to make room in bed
-            if (newBed.OwnersForReading.Count == newBed.SleepingSlotsCount)
+            var pawn = ___pawn;
+            if (newBed.OwnersForReading.Count == newBed.SleepingSlotsCount && !newBed.OwnersForReading.Any(p => p == pawn))
             {
                 var pawnToRemove = newBed.OwnersForReading[newBed.OwnersForReading.Count - 1];
                 pawnToRemove.ownership.UnclaimBed();
@@ -103,23 +105,6 @@ namespace KeepBedOwnership.Patch
                 {
                     ___intOwnedBed = pawnBedsOnMap.First();
                 }
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(MapPawns), "RegisterPawn")]
-    class PatchRegisterPawn
-    {
-        static void Postfix(ref Pawn p)
-        {
-            // Ignore calls during game load
-            if (p.Map != Find.CurrentMap) return;
-
-            // If a pawn enters a map where they own a bed, claim it
-            var pawnBeds = Helpers.PawnBedsOnMap(p, Find.CurrentMap);
-            if (pawnBeds.Any())
-            {
-                p.ownership.ClaimBedIfNonMedical(pawnBeds.First());
             }
         }
     }
