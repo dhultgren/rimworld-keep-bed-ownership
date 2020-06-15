@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using RimWorld;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
@@ -8,12 +9,34 @@ namespace KeepBedOwnership.Patch
 {
     static class Helpers
     {
-        public static List<Building_Bed> PawnBedsOnMap(Pawn ___pawn, Map map)
+        public static List<Building_Bed> PawnBedsOnMap(Pawn pawn, Map map)
         {
-            return map.listerThings.ThingsInGroup(ThingRequestGroup.Bed)
+            var mapsOnThisTile = Find.Maps.Where(m => m.Tile == map.Tile);
+            return mapsOnThisTile.SelectMany(m => m.listerThings.ThingsInGroup(ThingRequestGroup.Bed)
                 .Select(t => t as Building_Bed)
-                .Where(b => b.OwnersForReading.Contains(___pawn))
+                .Where(b => b.OwnersForReading.Contains(pawn)))
                 .ToList();
+        }
+
+        public static void UnclaimBeds(Pawn pawn, IEnumerable<Building_Bed> beds, ref Building_Bed ___intOwnedBed)
+        {
+            foreach(var bed in beds)
+            {
+                bed.CompAssignableToPawn.ForceRemovePawn(pawn);
+                if (pawn.ownership.OwnedBed != null && pawn.ownership.OwnedBed == bed)
+                {
+                    ___intOwnedBed = null;
+                    ThoughtUtility.RemovePositiveBedroomThoughts(pawn);
+                }
+            }
+        }
+
+        // Compatibility for Z-Levels mod
+        public static bool IsZLevel(Map map)
+        {
+            return !map.IsPlayerHome
+                && !map.IsTempIncidentMap
+                && map?.ParentFaction == null;
         }
     }
 
@@ -25,8 +48,8 @@ namespace KeepBedOwnership.Patch
             var bed = __instance.parent as Building_Bed;
             if (bed == null || !bed.Spawned || bed.ForPrisoners) return true;
 
-            // Allow selecting any colonist on permanent bases
-            if (bed.Map.IsPlayerHome)
+            // Allow selecting any colonist on permanent bases, including Z-levels
+            if (bed.Map.IsPlayerHome || Helpers.IsZLevel(bed.Map))
             {
                 __result = Find.ColonistBar.GetColonistsInOrder(); // Doesn't feel like the correct way to do this
                 return false;
@@ -58,18 +81,16 @@ namespace KeepBedOwnership.Patch
             }
 
             // Remove other pawn to make room in bed
-            if (newBed.OwnersForReading.Count == newBed.SleepingSlotsCount)
+            var pawn = ___pawn;
+            if (newBed.OwnersForReading.Count == newBed.SleepingSlotsCount && !newBed.OwnersForReading.Any(p => p == pawn))
             {
                 var pawnToRemove = newBed.OwnersForReading[newBed.OwnersForReading.Count - 1];
                 pawnToRemove.ownership.UnclaimBed();
             }
 
-            // Unclaim bed if pawn already has one on the current map
+            // Unclaim beds if pawn already has any on the current map, or Z-levels of it
             var pawnBeds = Helpers.PawnBedsOnMap(___pawn, Find.CurrentMap);
-            if (pawnBeds.Any())
-            {
-                __instance.UnclaimBed();
-            }
+            Helpers.UnclaimBeds(___pawn, pawnBeds, ref ___intOwnedBed);
 
             // Claim new bed
             newBed.CompAssignableToPawn.ForceAddPawn(___pawn);
@@ -107,20 +128,21 @@ namespace KeepBedOwnership.Patch
         }
     }
 
-    [HarmonyPatch(typeof(MapPawns), "RegisterPawn")]
+    /*[HarmonyPatch(typeof(MapPawns), "RegisterPawn")]
     class PatchRegisterPawn
     {
         static void Postfix(ref Pawn p)
         {
-            // Ignore calls during game load
-            if (p.Map != Find.CurrentMap) return;
-
             // If a pawn enters a map where they own a bed, claim it
-            var pawnBeds = Helpers.PawnBedsOnMap(p, Find.CurrentMap);
-            if (pawnBeds.Any())
+            var pawnBeds = Helpers.PawnBedsOnMap(p, p.Map);
+            if (pawnBeds.Count() == 1)
             {
-                p.ownership.ClaimBedIfNonMedical(pawnBeds.First());
+                var bed = pawnBeds[0];
+                if (!bed.OwnersForReading.Contains(p) || p.ownership.OwnedBed != bed || !bed.CompAssignableToPawn.AssignedPawns.Contains(p))
+                {
+                    p.ownership.ClaimBedIfNonMedical(bed);
+                }
             }
         }
-    }
+    }*/
 }
