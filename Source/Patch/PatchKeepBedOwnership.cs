@@ -16,6 +16,19 @@ namespace KeepBedOwnership.Patch
                 .Where(b => b.OwnersForReading.Contains(___pawn))
                 .ToList();
         }
+
+        public static void UnclaimBeds(Pawn pawn, IEnumerable<Building_Bed> beds, ref Building_Bed ___intOwnedBed)
+        {
+            foreach (var bed in beds)
+            {
+                bed.CompAssignableToPawn.ForceRemovePawn(pawn);
+                if (pawn.ownership.OwnedBed != null && pawn.ownership.OwnedBed == bed)
+                {
+                    ___intOwnedBed = null;
+                    ThoughtUtility.RemovePositiveBedroomThoughts(pawn);
+                }
+            }
+        }
     }
 
     [HarmonyPatch(typeof(CompAssignableToPawn), "AssigningCandidates", MethodType.Getter)]
@@ -41,6 +54,7 @@ namespace KeepBedOwnership.Patch
     {
         static bool Prefix(ref bool __result, CompAssignableToPawn_Bed __instance, Pawn pawn)
         {
+            if (!pawn.IsColonistPlayerControlled) return true;
             // Check if the pawn has any bed on this map instead of only checking their current bed
             var pawnBeds = Helpers.PawnBedsOnMap(pawn, Find.CurrentMap);
             __result = pawnBeds.Any();
@@ -53,7 +67,9 @@ namespace KeepBedOwnership.Patch
     {
         static bool Prefix(Building_Bed newBed, Pawn_Ownership __instance, ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
-            if (newBed.Medical || (newBed.OwnersForReading.Contains(___pawn) && ___pawn.ownership.OwnedBed == newBed))
+            if (newBed.Medical
+                || !___pawn.IsColonistPlayerControlled
+                || (newBed.OwnersForReading.Contains(___pawn) && ___pawn.ownership.OwnedBed == newBed))
             {
                 return true;
             }
@@ -62,7 +78,7 @@ namespace KeepBedOwnership.Patch
             var pawn = ___pawn;
             if (newBed.OwnersForReading.Count == newBed.SleepingSlotsCount && !newBed.OwnersForReading.Any(p => p == pawn))
             {
-                var pawnToRemove = newBed.OwnersForReading[newBed.OwnersForReading.Count - 1];
+                var pawnToRemove = newBed.OwnersForReading.Last();
                 pawnToRemove.ownership.UnclaimBed();
             }
 
@@ -70,7 +86,7 @@ namespace KeepBedOwnership.Patch
             var pawnBeds = Helpers.PawnBedsOnMap(___pawn, Find.CurrentMap);
             if (pawnBeds.Any())
             {
-                __instance.UnclaimBed();
+                Helpers.UnclaimBeds(___pawn, pawnBeds, ref ___intOwnedBed);
             }
 
             // Claim new bed
@@ -85,20 +101,22 @@ namespace KeepBedOwnership.Patch
     [HarmonyPatch(typeof(Pawn_Ownership), "UnclaimBed")]
     class PatchUnclaimBed
     {
-        static void Prefix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
+        static bool Prefix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
+            if (!___pawn.IsColonistPlayerControlled) return true;
             // Temporarily replace pawns owned bed on their map with the bed owned on the current map
             var pawnBedsOnMap = Helpers.PawnBedsOnMap(___pawn, Find.CurrentMap);
             if (pawnBedsOnMap.Any())
             {
                 ___intOwnedBed = pawnBedsOnMap.First();
             }
+            return false;
         }
 
         static void Postfix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
             // Return pawn owned bed to their current map
-            if (___pawn.Map != null)
+            if (___pawn.IsColonistPlayerControlled && ___pawn.Map != null)
             {
                 var pawnBedsOnMap = Helpers.PawnBedsOnMap(___pawn, ___pawn.Map);
                 if (pawnBedsOnMap.Any())
