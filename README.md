@@ -1,1 +1,1 @@
-# rimworld-keep-bed-ownership
+Rimworld mod, published on Steam workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=2130184293
