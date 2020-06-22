@@ -22,12 +22,16 @@ namespace KeepBedOwnership.Patch
             foreach (var bed in beds)
             {
                 bed.CompAssignableToPawn.ForceRemovePawn(pawn);
-                if (pawn.ownership.OwnedBed != null && pawn.ownership.OwnedBed == bed)
+                if (pawn.ownership.OwnedBed == bed)
                 {
                     ___intOwnedBed = null;
-                    ThoughtUtility.RemovePositiveBedroomThoughts(pawn);
                 }
             }
+        }
+
+        public static bool ShouldRunForPawn(Pawn pawn)
+        {
+            return pawn.IsColonistPlayerControlled || (pawn.IsColonist && pawn.Map == null && pawn.MapHeld == null);
         }
     }
 
@@ -54,8 +58,8 @@ namespace KeepBedOwnership.Patch
     {
         static bool Prefix(ref bool __result, CompAssignableToPawn_Bed __instance, Pawn pawn)
         {
-            if (!pawn.IsColonistPlayerControlled) return true;
-            // Check if the pawn has any bed on this map instead of only checking their current bed
+            if (!Helpers.ShouldRunForPawn(pawn)) return true;
+            // This is only used to display pawn list, so use the pawn ownership on the current map instead of their current bed
             var pawnBeds = Helpers.PawnBedsOnMap(pawn, Find.CurrentMap);
             __result = pawnBeds.Any();
             return false;
@@ -68,7 +72,7 @@ namespace KeepBedOwnership.Patch
         static bool Prefix(Building_Bed newBed, Pawn_Ownership __instance, ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
             if (newBed.Medical
-                || !___pawn.IsColonistPlayerControlled
+                || !Helpers.ShouldRunForPawn(___pawn)
                 || (newBed.OwnersForReading.Contains(___pawn) && ___pawn.ownership.OwnedBed == newBed))
             {
                 return true;
@@ -82,8 +86,8 @@ namespace KeepBedOwnership.Patch
                 pawnToRemove.ownership.UnclaimBed();
             }
 
-            // Unclaim bed if pawn already has one on the current map
-            var pawnBeds = Helpers.PawnBedsOnMap(___pawn, Find.CurrentMap);
+            // Unclaim bed if pawn already has one on the map of the new bed
+            var pawnBeds = Helpers.PawnBedsOnMap(___pawn, newBed.Map);
             if (pawnBeds.Any())
             {
                 Helpers.UnclaimBeds(___pawn, pawnBeds, ref ___intOwnedBed);
@@ -91,8 +95,12 @@ namespace KeepBedOwnership.Patch
 
             // Claim new bed
             newBed.CompAssignableToPawn.ForceAddPawn(___pawn);
-            ___intOwnedBed = newBed;
-            ThoughtUtility.RemovePositiveBedroomThoughts(___pawn);
+            // ... but only assign it if the pawn is on the same map
+            if (___pawn.Map == newBed.Map)
+            {
+                ___intOwnedBed = newBed;
+                ThoughtUtility.RemovePositiveBedroomThoughts(___pawn);
+            }
 
             return false;
         }
@@ -103,26 +111,34 @@ namespace KeepBedOwnership.Patch
     {
         static bool Prefix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
-            if (!___pawn.IsColonistPlayerControlled) return true;
+            if (!Helpers.ShouldRunForPawn(___pawn)) return true;
+
             // Temporarily replace pawns owned bed on their map with the bed owned on the current map
-            var pawnBedsOnMap = Helpers.PawnBedsOnMap(___pawn, Find.CurrentMap);
-            if (pawnBedsOnMap.Any())
-            {
-                ___intOwnedBed = pawnBedsOnMap.First();
-            }
-            return false;
+            ClaimBedOnMapIfExists(___pawn, Find.CurrentMap, ref ___intOwnedBed);
+            return true;
         }
 
         static void Postfix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
             // Return pawn owned bed to their current map
-            if (___pawn.IsColonistPlayerControlled && ___pawn.Map != null)
+            if (Helpers.ShouldRunForPawn(___pawn) && ___pawn.Map != null)
             {
-                var pawnBedsOnMap = Helpers.PawnBedsOnMap(___pawn, ___pawn.Map);
-                if (pawnBedsOnMap.Any())
+                ClaimBedOnMapIfExists(___pawn, ___pawn.Map, ref ___intOwnedBed);
+            }
+        }
+
+        private static void ClaimBedOnMapIfExists(Pawn ___pawn, Map map, ref Building_Bed ___intOwnedBed)
+        {
+            var pawnBedsOnMap = Helpers.PawnBedsOnMap(___pawn, map);
+            if (pawnBedsOnMap.Any())
+            {
+                var bed = pawnBedsOnMap.First();
+                ___intOwnedBed = bed;
+                if (!bed.CompAssignableToPawn.AssignedPawnsForReading.Contains(___pawn))
                 {
-                    ___intOwnedBed = pawnBedsOnMap.First();
+                    bed.CompAssignableToPawn.ForceAddPawn(___pawn);
                 }
+                ThoughtUtility.RemovePositiveBedroomThoughts(___pawn);
             }
         }
     }
