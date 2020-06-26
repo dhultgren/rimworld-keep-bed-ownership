@@ -10,19 +10,18 @@ namespace KeepBedOwnership.Patch
     {
         public static List<Building_Bed> PawnBedsOnMap(Pawn ___pawn, Map map)
         {
-            if (map == null) return new List<Building_Bed>();
-            return map.listerThings.ThingsInGroup(ThingRequestGroup.Bed)
+            return map?.listerThings?.ThingsInGroup(ThingRequestGroup.Bed)
                 .Select(t => t as Building_Bed)
-                .Where(b => b.OwnersForReading.Contains(___pawn))
-                .ToList();
+                .Where(b => b?.OwnersForReading != null && b.OwnersForReading.Contains(___pawn))
+                .ToList() ?? new List<Building_Bed>();
         }
 
         public static void UnclaimBeds(Pawn pawn, IEnumerable<Building_Bed> beds, ref Building_Bed ___intOwnedBed)
         {
             foreach (var bed in beds)
             {
-                bed.CompAssignableToPawn.ForceRemovePawn(pawn);
-                if (pawn.ownership.OwnedBed == bed)
+                bed?.CompAssignableToPawn?.ForceRemovePawn(pawn);
+                if (pawn.ownership?.OwnedBed == bed)
                 {
                     ___intOwnedBed = null;
                 }
@@ -31,7 +30,9 @@ namespace KeepBedOwnership.Patch
 
         public static bool ShouldRunForPawn(Pawn pawn)
         {
-            return pawn.IsColonistPlayerControlled || (pawn.IsColonist && pawn.Map == null && pawn.MapHeld == null);
+            return pawn != null &&
+                (pawn.IsColonistPlayerControlled // Player pawn
+                || (pawn.IsColonist && pawn.Map == null && pawn.MapHeld == null)); // Guest
         }
     }
 
@@ -41,7 +42,7 @@ namespace KeepBedOwnership.Patch
         static bool Prefix(ref IEnumerable<Pawn> __result, CompAssignableToPawn __instance)
         {
             var bed = __instance.parent as Building_Bed;
-            if (bed == null || !bed.Spawned || bed.ForPrisoners) return true;
+            if (bed == null || !bed.Spawned || bed.ForPrisoners || bed.Map == null) return true;
 
             // Allow selecting any colonist on permanent bases
             if (bed.Map.IsPlayerHome)
@@ -71,19 +72,22 @@ namespace KeepBedOwnership.Patch
     {
         static bool Prefix(Building_Bed newBed, Pawn_Ownership __instance, ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
-            if (newBed.Medical
+            if (newBed == null
+                || newBed.Medical
                 || !Helpers.ShouldRunForPawn(___pawn)
-                || (newBed.OwnersForReading.Contains(___pawn) && ___pawn.ownership.OwnedBed == newBed))
+                || (newBed.OwnersForReading != null && newBed.OwnersForReading.Contains(___pawn) && ___pawn.ownership?.OwnedBed == newBed))
             {
                 return true;
             }
 
             // Remove other pawn to make room in bed
             var pawn = ___pawn;
-            if (newBed.OwnersForReading.Count == newBed.SleepingSlotsCount && !newBed.OwnersForReading.Any(p => p == pawn))
+            if (newBed.OwnersForReading?.Count == newBed.SleepingSlotsCount
+                && !newBed.OwnersForReading.Any(p => p == pawn)
+                && newBed.OwnersForReading.Count > 0)
             {
-                var pawnToRemove = newBed.OwnersForReading.Last();
-                pawnToRemove.ownership.UnclaimBed();
+                var pawnToRemove = newBed.OwnersForReading.LastOrDefault();
+                pawnToRemove?.ownership?.UnclaimBed();
             }
 
             // Unclaim bed if pawn already has one on the map of the new bed
@@ -113,6 +117,11 @@ namespace KeepBedOwnership.Patch
         {
             if (!Helpers.ShouldRunForPawn(___pawn)) return true;
 
+            // NOTE: If the bed is unclaimed (typically deconstructed/replaced) on another map this will cause the pawn
+            // to unclaim the bed on CurrentMap. Since UnclaimBed doesn't specify bed we have to guess, and since it's
+            // called from a bunch of places in vanilla (plus whatever from mods) I'd rather just take the occasional
+            // unwanted unclaim instead of trying to patch everywhere.
+
             // Temporarily replace pawns owned bed on their map with the bed owned on the current map
             ClaimBedOnMapIfExists(___pawn, Find.CurrentMap, ref ___intOwnedBed);
             return true;
@@ -134,7 +143,7 @@ namespace KeepBedOwnership.Patch
             {
                 var bed = pawnBedsOnMap.First();
                 ___intOwnedBed = bed;
-                if (!bed.CompAssignableToPawn.AssignedPawnsForReading.Contains(___pawn))
+                if (bed.CompAssignableToPawn != null && !bed.CompAssignableToPawn.AssignedPawnsForReading.Contains(___pawn))
                 {
                     bed.CompAssignableToPawn.ForceAddPawn(___pawn);
                 }
