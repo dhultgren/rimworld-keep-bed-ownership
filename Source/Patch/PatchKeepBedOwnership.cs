@@ -2,6 +2,7 @@
 using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using Verse;
 
 namespace KeepBedOwnership.Patch
@@ -33,6 +34,27 @@ namespace KeepBedOwnership.Patch
             return pawn != null &&
                 (pawn.IsColonistPlayerControlled // Player pawn
                 || (pawn.IsColonist && pawn.Map == null && pawn.MapHeld == null)); // Guest
+        }
+    }
+
+    [HarmonyPatch(typeof(CompAssignableToPawn_Bed), "PostExposeData")]
+    class PatchCompAssignableToPawn_Bed_PostExposeData
+    {
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            // Disable code that removes pawns from beds with non-reciprocated ownerships
+            var found = false;
+            foreach (var instruction in instructions)
+            {
+                yield return instruction;
+
+                if (!found && instruction.ToString().Contains("PostExposeData"))
+                {
+                    yield return new CodeInstruction(OpCodes.Ret);
+
+                    found = true;
+                }
+            }
         }
     }
 
