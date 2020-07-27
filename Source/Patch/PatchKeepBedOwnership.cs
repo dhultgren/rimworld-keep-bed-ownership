@@ -31,9 +31,7 @@ namespace KeepBedOwnership.Patch
 
         public static bool ShouldRunForPawn(Pawn pawn)
         {
-            return pawn != null &&
-                (pawn.IsColonistPlayerControlled // Player pawn
-                || (pawn.IsColonist && pawn.Map == null && pawn.MapHeld == null)); // Guest
+            return pawn != null && pawn.IsColonistPlayerControlled;
         }
     }
 
