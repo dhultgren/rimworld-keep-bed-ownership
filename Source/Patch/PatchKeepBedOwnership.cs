@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using RimWorld;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
@@ -31,28 +32,29 @@ namespace KeepBedOwnership.Patch
 
         public static bool ShouldRunForPawn(Pawn pawn)
         {
-            return pawn != null && pawn.IsColonistPlayerControlled;
+            return pawn != null && pawn.IsFreeColonist;
         }
     }
 
     [HarmonyPatch(typeof(CompAssignableToPawn_Bed), "PostExposeData")]
     class PatchCompAssignableToPawn_Bed_PostExposeData
     {
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        static bool Prefix(CompAssignableToPawn_Bed __instance, ref List<Pawn> ___assignedPawns, ThingWithComps ___parent)
         {
-            // Disable code that removes pawns from beds with non-reciprocated ownerships
-            var found = false;
-            foreach (var instruction in instructions)
+            if (Scribe.mode != LoadSaveMode.PostLoadInit) return true;
+
+            var unreciprocatedOwners = ___assignedPawns
+                .Where(p => p.ownership.OwnedBed != ___parent)
+                .ToList();
+            if (unreciprocatedOwners.Count > 0)
             {
-                yield return instruction;
-
-                if (!found && instruction.ToString().Contains("PostExposeData"))
+                if (unreciprocatedOwners.Any(p => p.IsFreeColonist))
                 {
-                    yield return new CodeInstruction(OpCodes.Ret);
-
-                    found = true;
+                    return false;
                 }
+                ___assignedPawns.RemoveAll(p => !p.IsFreeColonist && unreciprocatedOwners.Contains(p));
             }
+            return true;
         }
     }
 
