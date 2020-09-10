@@ -139,6 +139,14 @@ namespace KeepBedOwnership.Patch
         {
             if (!Helpers.ShouldRunForPawn(___pawn)) return true;
 
+            var isInShuttle = !___pawn.Spawned && ___pawn.SpawnedParentOrMe?.Label?.Contains("shuttle") == true;
+            if (isInShuttle)
+            {
+                ___intOwnedBed = null;
+                ThoughtUtility.RemovePositiveBedroomThoughts(___pawn);
+                return true;
+            }
+
             // NOTE: If the bed is unclaimed (typically deconstructed/replaced) on another map this will cause the pawn
             // to unclaim the bed on CurrentMap. Since UnclaimBed doesn't specify bed we have to guess, and since it's
             // called from a bunch of places in vanilla (plus whatever from mods) I'd rather just take the occasional
@@ -151,10 +159,11 @@ namespace KeepBedOwnership.Patch
 
         static void Postfix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
+            var pawnMap = ___pawn.Map ?? ___pawn.MapHeld ?? ___pawn.SpawnedParentOrMe?.Map;
             // Return pawn owned bed to their current map
-            if (Helpers.ShouldRunForPawn(___pawn) && ___pawn.Map != null)
+            if (Helpers.ShouldRunForPawn(___pawn) && pawnMap != null)
             {
-                ClaimBedOnMapIfExists(___pawn, ___pawn.Map, ref ___intOwnedBed);
+                ClaimBedOnMapIfExists(___pawn, pawnMap, ref ___intOwnedBed);
             }
         }
 
