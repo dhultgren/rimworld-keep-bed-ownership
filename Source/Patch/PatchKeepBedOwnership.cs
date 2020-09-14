@@ -132,6 +132,21 @@ namespace KeepBedOwnership.Patch
         }
     }
 
+    [HarmonyPatch(typeof(RestUtility), nameof(RestUtility.FindBedFor))]
+    [HarmonyPatch(new[] { typeof(Pawn), typeof(Pawn), typeof(bool), typeof(bool), typeof(bool) })]
+    class PatchFindBedFor
+    {
+        static void Postfix(Pawn sleeper, Pawn traveler, bool sleeperWillBePrisoner, bool checkSocialProperness, bool ignoreOtherReservations, ref Building_Bed __result)
+        {
+            if (__result == null || __result.Medical || !Helpers.ShouldRunForPawn(sleeper)) return;
+            var currentBed = Helpers.PawnBedsOnMap(sleeper, sleeper.Map);
+            if (currentBed.Count > 0)
+            {
+                __result = currentBed[0];
+            }
+        }
+    }
+
     [HarmonyPatch(typeof(Pawn_Ownership), "UnclaimBed")]
     class PatchUnclaimBed
     {
