@@ -139,8 +139,9 @@ namespace KeepBedOwnership.Patch
         {
             if (!Helpers.ShouldRunForPawn(___pawn)) return true;
 
+            var isFarskipping = ___pawn?.CurJob?.ability?.def?.label == "farskip";
             var isInShuttle = !___pawn.Spawned && ___pawn.SpawnedParentOrMe?.Label?.Contains("shuttle") == true;
-            if (isInShuttle)
+            if (isInShuttle || isFarskipping)
             {
                 ___intOwnedBed = null;
                 ThoughtUtility.RemovePositiveBedroomThoughts(___pawn);
