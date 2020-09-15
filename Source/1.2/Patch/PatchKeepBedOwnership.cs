@@ -152,7 +152,7 @@ namespace KeepBedOwnership.Patch
     {
         static bool Prefix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
-            if (!Helpers.ShouldRunForPawn(___pawn)) return true;
+            if (!Helpers.ShouldRunForPawn(___pawn)) return true; 
 
             var isFarskipping = ___pawn?.CurJob?.ability?.def?.label == "farskip";
             var isInShuttle = !___pawn.Spawned && ___pawn.SpawnedParentOrMe?.Label?.Contains("shuttle") == true;

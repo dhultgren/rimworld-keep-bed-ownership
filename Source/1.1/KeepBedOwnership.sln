@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30204.135
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeepBedOwnership", "Source\KeepBedOwnership.csproj", "{8019E24B-4C87-4757-BA8B-7084FE6D7B8F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeepBedOwnership", "KeepBedOwnership.csproj", "{8019E24B-4C87-4757-BA8B-7084FE6D7B8F}"
 EndProject
 Project("{911E67C6-3D85-4FCE-B560-20A9C3E3FF48}") = "RimWorldWin64", "C:\Program Files (x86)\Steam\SteamApps\common\RimWorld\RimWorldWin64.exe", "{9A9767AD-0734-4299-BAD9-63045DD97526}"
 	ProjectSection(DebuggerProjectSystem) = preProject

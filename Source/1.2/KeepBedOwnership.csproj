@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>portable</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\..\..\Program Files %28x86%29\Steam\SteamApps\common\RimWorld\Mods\KeepBedOwnership\Assemblies\</OutputPath>
+    <OutputPath>..\..\..\..\..\..\Program Files %28x86%29\Steam\SteamApps\common\RimWorld\Mods\KeepBedOwnership\v1.2\Assemblies\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -31,8 +31,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="0Harmony, Version=2.0.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Lib.Harmony.2.0.1\lib\net472\0Harmony.dll</HintPath>
+    <Reference Include="0Harmony, Version=2.0.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\Lib.Harmony.2.0.2\lib\net472\0Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
