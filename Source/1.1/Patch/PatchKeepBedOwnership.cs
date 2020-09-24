@@ -32,7 +32,7 @@ namespace KeepBedOwnership.Patch
 
         public static bool ShouldRunForPawn(Pawn pawn)
         {
-            return pawn != null && pawn.IsFreeColonist;
+            return pawn != null && pawn.IsFreeColonist && !pawn.Dead;
         }
     }
 
@@ -44,7 +44,7 @@ namespace KeepBedOwnership.Patch
             if (Scribe.mode != LoadSaveMode.PostLoadInit) return true;
 
             var unreciprocatedOwners = ___assignedPawns
-                .Where(p => p.ownership.OwnedBed != ___parent)
+                .Where(p => p?.ownership?.OwnedBed != ___parent)
                 .ToList();
             if (unreciprocatedOwners.Count > 0)
             {
@@ -52,7 +52,7 @@ namespace KeepBedOwnership.Patch
                 {
                     return false;
                 }
-                ___assignedPawns.RemoveAll(p => !p.IsFreeColonist && unreciprocatedOwners.Contains(p));
+                ___assignedPawns.RemoveAll(p => p?.IsFreeColonist == false && unreciprocatedOwners.Contains(p));
             }
             return true;
         }
@@ -152,6 +152,7 @@ namespace KeepBedOwnership.Patch
     {
         static bool Prefix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
+            UnassignAllBedsIfDead(___pawn);
             if (!Helpers.ShouldRunForPawn(___pawn)) return true;
 
             var isInShuttle = !___pawn.Spawned && ___pawn.SpawnedParentOrMe?.Label?.Contains("shuttle") == true;
@@ -194,6 +195,16 @@ namespace KeepBedOwnership.Patch
                     bed.CompAssignableToPawn.ForceAddPawn(___pawn);
                 }
                 ThoughtUtility.RemovePositiveBedroomThoughts(___pawn);
+            }
+        }
+
+        private static void UnassignAllBedsIfDead(Pawn pawn)
+        {
+            if (pawn?.Dead == true)
+            {
+                var pawnBeds = Find.Maps.SelectMany(map => Helpers.PawnBedsOnMap(pawn, map));
+                Building_Bed noBed = null;
+                Helpers.UnclaimBeds(pawn, pawnBeds, ref noBed);
             }
         }
     }
