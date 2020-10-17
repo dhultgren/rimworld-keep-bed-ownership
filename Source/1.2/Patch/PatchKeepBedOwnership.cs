@@ -34,6 +34,13 @@ namespace KeepBedOwnership.Patch
         {
             return pawn != null && pawn.IsFreeColonist && !pawn.Dead;
         }
+
+        public static bool ShouldRunForBed(Building_Bed bed)
+        {
+            if (bed == null || !bed.Spawned || bed.ForPrisoners || bed.Map == null) return false;
+            if (bed.GetType().ToString().Contains("WhatTheHack")) return false;
+            return true;
+        }
     }
 
     [HarmonyPatch(typeof(CompAssignableToPawn_Bed), "PostExposeData")]
@@ -64,7 +71,7 @@ namespace KeepBedOwnership.Patch
         static bool Prefix(ref IEnumerable<Pawn> __result, CompAssignableToPawn __instance)
         {
             var bed = __instance.parent as Building_Bed;
-            if (bed == null || !bed.Spawned || bed.ForPrisoners || bed.Map == null) return true;
+            if (!Helpers.ShouldRunForBed(bed)) return true;
 
             // Allow selecting any colonist on permanent bases
             if (bed.Map.IsPlayerHome)
@@ -97,6 +104,7 @@ namespace KeepBedOwnership.Patch
             if (newBed == null
                 || newBed.Medical
                 || !Helpers.ShouldRunForPawn(___pawn)
+                || !Helpers.ShouldRunForBed(newBed)
                 || (newBed.OwnersForReading != null && newBed.OwnersForReading.Contains(___pawn) && ___pawn.ownership?.OwnedBed == newBed))
             {
                 return true;
