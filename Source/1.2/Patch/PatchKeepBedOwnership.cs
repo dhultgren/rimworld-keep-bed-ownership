@@ -33,7 +33,7 @@ namespace KeepBedOwnership.Patch
 
         public static bool ShouldRunForPawn(Pawn pawn)
         {
-            return pawn != null && pawn.IsFreeColonist && !pawn.Dead && pawn.Spawned;
+            return pawn != null && pawn.IsFreeColonist && !pawn.Dead;
         }
 
         public static bool ShouldRunForBed(Building_Bed bed)
@@ -164,7 +164,7 @@ namespace KeepBedOwnership.Patch
     {
         static bool Prefix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
-            UnassignAllBedsIfDeadOrNotSpawned(___pawn);
+            UnassignBedsForOldPawns(___pawn);
             if (!Helpers.ShouldRunForPawn(___pawn)) return true; 
 
             var isFarskipping = ___pawn.CurJob?.ability?.def?.label == "farskip";
@@ -181,6 +181,7 @@ namespace KeepBedOwnership.Patch
             // called from a bunch of places in vanilla (plus whatever from mods) I'd rather just take the occasional
             // unwanted unclaim instead of trying to patch everywhere.
 
+            // Temporarily replace pawns owned bed on their map with the bed owned on the current map
             ClaimBedOnMapIfExists(___pawn, Find.CurrentMap, ref ___intOwnedBed);
             return true;
         }
@@ -210,9 +211,13 @@ namespace KeepBedOwnership.Patch
             }
         }
 
-        private static void UnassignAllBedsIfDeadOrNotSpawned(Pawn pawn)
+        private static void UnassignBedsForOldPawns(Pawn pawn)
         {
-            if (pawn != null && (pawn.Dead || !pawn.Spawned))
+            if (pawn == null) return;
+            var isDead = pawn.Dead;
+            var isDespawnedNonColonist = !pawn.IsFreeColonist && !pawn.Spawned;
+            var isImprisonedColonist = pawn.IsColonist && pawn.IsPrisoner;
+            if (isDead || isDespawnedNonColonist || isImprisonedColonist)
             {
                 var pawnBeds = Find.Maps.SelectMany(map => Helpers.PawnBedsOnMap(pawn, map));
                 Building_Bed noBed = null;
