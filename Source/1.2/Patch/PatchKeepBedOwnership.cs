@@ -43,6 +43,7 @@ namespace KeepBedOwnership.Patch
         }
     }
 
+    // Normally the game removes ownership of beds if pawn.ownership doesn't reflect the ownership. This patch stops that.
     [HarmonyPatch(typeof(CompAssignableToPawn_Bed), "PostExposeData")]
     class PatchCompAssignableToPawn_Bed_PostExposeData
     {
@@ -76,7 +77,7 @@ namespace KeepBedOwnership.Patch
             // Allow selecting any colonist on permanent bases
             if (bed.Map.IsPlayerHome)
             {
-                __result = Find.ColonistBar.GetColonistsInOrder(); // Doesn't feel like the correct way to do this
+                __result = Find.ColonistBar.GetColonistsInOrder();
                 return false;
             }
             return true;
@@ -140,6 +141,7 @@ namespace KeepBedOwnership.Patch
         }
     }
 
+    // Make sure pawns pick their current beds when looking for a normal bed to sleep
     [HarmonyPatch(typeof(RestUtility), nameof(RestUtility.FindBedFor))]
     [HarmonyPatch(new[] { typeof(Pawn), typeof(Pawn), typeof(bool), typeof(bool), typeof(bool) })]
     class PatchFindBedFor
@@ -155,6 +157,8 @@ namespace KeepBedOwnership.Patch
         }
     }
 
+    // Temporarily replace pawns owned bed on their map with the bed owned on the current map in order to
+    // unclaim the correct bed
     [HarmonyPatch(typeof(Pawn_Ownership), "UnclaimBed")]
     class PatchUnclaimBed
     {
