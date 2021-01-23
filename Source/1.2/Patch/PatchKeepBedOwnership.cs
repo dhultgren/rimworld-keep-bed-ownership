@@ -26,18 +26,19 @@ namespace KeepBedOwnership.Patch
                 if (pawn.ownership?.OwnedBed == bed)
                 {
                     ___intOwnedBed = null;
+                    ThoughtUtility.RemovePositiveBedroomThoughts(pawn);
                 }
             }
         }
 
         public static bool ShouldRunForPawn(Pawn pawn)
         {
-            return pawn != null && pawn.IsFreeColonist && !pawn.Dead;
+            return pawn != null && pawn.IsFreeColonist && !pawn.Dead && pawn.Spawned;
         }
 
         public static bool ShouldRunForBed(Building_Bed bed)
         {
-            if (bed == null || !bed.Spawned || bed.ForPrisoners || bed.Map == null) return false;
+            if (bed == null || !bed.Spawned || bed.ForPrisoners || bed.Map == null || bed.Medical) return false;
             if (bed.GetType().ToString().Contains("WhatTheHack")) return false;
             return true;
         }
@@ -103,7 +104,6 @@ namespace KeepBedOwnership.Patch
         static bool Prefix(Building_Bed newBed, Pawn_Ownership __instance, ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
             if (newBed == null
-                || newBed.Medical
                 || !Helpers.ShouldRunForPawn(___pawn)
                 || !Helpers.ShouldRunForBed(newBed)
                 || (newBed.OwnersForReading != null && newBed.OwnersForReading.Contains(___pawn) && ___pawn.ownership?.OwnedBed == newBed))
@@ -164,10 +164,10 @@ namespace KeepBedOwnership.Patch
     {
         static bool Prefix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
-            UnassignAllBedsIfDead(___pawn);
+            UnassignAllBedsIfDeadOrNotSpawned(___pawn);
             if (!Helpers.ShouldRunForPawn(___pawn)) return true; 
 
-            var isFarskipping = ___pawn?.CurJob?.ability?.def?.label == "farskip";
+            var isFarskipping = ___pawn.CurJob?.ability?.def?.label == "farskip";
             var isInShuttle = !___pawn.Spawned && ___pawn.SpawnedParentOrMe?.Label?.Contains("shuttle") == true;
             if (isInShuttle || isFarskipping)
             {
@@ -181,7 +181,6 @@ namespace KeepBedOwnership.Patch
             // called from a bunch of places in vanilla (plus whatever from mods) I'd rather just take the occasional
             // unwanted unclaim instead of trying to patch everywhere.
 
-            // Temporarily replace pawns owned bed on their map with the bed owned on the current map
             ClaimBedOnMapIfExists(___pawn, Find.CurrentMap, ref ___intOwnedBed);
             return true;
         }
@@ -211,9 +210,9 @@ namespace KeepBedOwnership.Patch
             }
         }
 
-        private static void UnassignAllBedsIfDead(Pawn pawn)
+        private static void UnassignAllBedsIfDeadOrNotSpawned(Pawn pawn)
         {
-            if (pawn?.Dead == true)
+            if (pawn != null && (pawn.Dead || !pawn.Spawned))
             {
                 var pawnBeds = Find.Maps.SelectMany(map => Helpers.PawnBedsOnMap(pawn, map));
                 Building_Bed noBed = null;
