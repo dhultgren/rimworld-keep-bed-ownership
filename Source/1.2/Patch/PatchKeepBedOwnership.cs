@@ -149,10 +149,17 @@ namespace KeepBedOwnership.Patch
         static void Postfix(Pawn sleeper, Pawn traveler, bool sleeperWillBePrisoner, bool checkSocialProperness, bool ignoreOtherReservations, ref Building_Bed __result)
         {
             if (__result == null || __result.Medical || !Helpers.ShouldRunForPawn(sleeper)) return;
-            var currentBed = Helpers.PawnBedsOnMap(sleeper, sleeper.Map);
-            if (currentBed.Count > 0)
+            var currentBeds = Helpers.PawnBedsOnMap(sleeper, sleeper.Map);
+            //Log.Message("Pre-check bed count: " + currentBeds.Count.ToString());
+            currentBeds = currentBeds
+                .Where(bed => sleeper.Map.reachability.CanReach(sleeper.Position, new LocalTargetInfo(bed), Verse.AI.PathEndMode.OnCell,
+                    new TraverseParms { canBash = false, maxDanger = Danger.Deadly, mode = TraverseMode.ByPawn, pawn = sleeper })
+                            && ForbidUtility.InAllowedArea(bed.Position, sleeper))
+                .ToList();
+            //Log.Message("Post-check bed count: " + currentBeds.Count.ToString());
+            if (currentBeds.Count > 0)
             {
-                __result = currentBed[0];
+                __result = currentBeds[0];
             }
         }
     }
@@ -165,7 +172,7 @@ namespace KeepBedOwnership.Patch
         static bool Prefix(ref Pawn ___pawn, ref Building_Bed ___intOwnedBed)
         {
             UnassignBedsForOldPawns(___pawn);
-            if (!Helpers.ShouldRunForPawn(___pawn)) return true; 
+            if (!Helpers.ShouldRunForPawn(___pawn)) return true;
 
             var isFarskipping = ___pawn.CurJob?.ability?.def?.label == "farskip";
             var isInShuttle = !___pawn.Spawned && ___pawn.SpawnedParentOrMe?.Label?.Contains("shuttle") == true;
@@ -199,9 +206,9 @@ namespace KeepBedOwnership.Patch
         private static void ClaimBedOnMapIfExists(Pawn ___pawn, Map map, ref Building_Bed ___intOwnedBed)
         {
             var pawnBedsOnMap = Helpers.PawnBedsOnMap(___pawn, map);
-            if (pawnBedsOnMap.Any())
+            var bed = pawnBedsOnMap.FirstOrDefault();
+            if (bed != null)
             {
-                var bed = pawnBedsOnMap.First();
                 ___intOwnedBed = bed;
                 if (bed.CompAssignableToPawn != null && !bed.CompAssignableToPawn.AssignedPawnsForReading.Contains(___pawn))
                 {
