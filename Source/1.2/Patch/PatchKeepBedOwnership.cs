@@ -174,9 +174,9 @@ namespace KeepBedOwnership.Patch
             UnassignBedsForOldPawns(___pawn);
             if (!Helpers.ShouldRunForPawn(___pawn)) return true;
 
-            var isFarskipping = ___pawn.CurJob?.ability?.def?.label == "farskip";
+            var isTeleporting = ___pawn.teleporting;
             var isInShuttle = !___pawn.Spawned && ___pawn.SpawnedParentOrMe?.Label?.Contains("shuttle") == true;
-            if (isInShuttle || isFarskipping)
+            if (isInShuttle || isTeleporting)
             {
                 ___intOwnedBed = null;
                 ThoughtUtility.RemovePositiveBedroomThoughts(___pawn);
