@@ -26,7 +26,6 @@ namespace KeepBedOwnership.Patch
                 if (pawn.ownership?.OwnedBed == bed)
                 {
                     ___intOwnedBed = null;
-                    ThoughtUtility.RemovePositiveBedroomThoughts(pawn);
                 }
             }
         }
@@ -179,7 +178,6 @@ namespace KeepBedOwnership.Patch
             if (isInShuttle || isTeleporting)
             {
                 ___intOwnedBed = null;
-                ThoughtUtility.RemovePositiveBedroomThoughts(___pawn);
                 return true;
             }
 
@@ -214,7 +212,6 @@ namespace KeepBedOwnership.Patch
                 {
                     bed.CompAssignableToPawn.ForceAddPawn(___pawn);
                 }
-                ThoughtUtility.RemovePositiveBedroomThoughts(___pawn);
             }
         }
 
