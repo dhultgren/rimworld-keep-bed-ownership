@@ -142,18 +142,18 @@ namespace KeepBedOwnership.Patch
 
     // Make sure pawns pick their current beds when looking for a normal bed to sleep
     [HarmonyPatch(typeof(RestUtility), nameof(RestUtility.FindBedFor))]
-    [HarmonyPatch(new[] { typeof(Pawn), typeof(Pawn), typeof(bool), typeof(bool), typeof(bool) })]
+    [HarmonyPatch(new[] { typeof(Pawn), typeof(Pawn), typeof(bool), typeof(bool), typeof(GuestStatus?) })]
     class PatchFindBedFor
     {
-        static void Postfix(Pawn sleeper, Pawn traveler, bool sleeperWillBePrisoner, bool checkSocialProperness, bool ignoreOtherReservations, ref Building_Bed __result)
+        static void Postfix(Pawn sleeper, Pawn traveler, bool checkSocialProperness, bool ignoreOtherReservations, GuestStatus? guestStatus, ref Building_Bed __result)
         {
             if (__result == null || __result.Medical || !Helpers.ShouldRunForPawn(sleeper)) return;
             var currentBeds = Helpers.PawnBedsOnMap(sleeper, sleeper.Map);
             //Log.Message("Pre-check bed count: " + currentBeds.Count.ToString());
             currentBeds = currentBeds
-                .Where(bed => sleeper.Map.reachability.CanReach(sleeper.Position, new LocalTargetInfo(bed), Verse.AI.PathEndMode.OnCell,
-                    new TraverseParms { canBash = false, maxDanger = Danger.Deadly, mode = TraverseMode.ByPawn, pawn = sleeper })
-                            && ForbidUtility.InAllowedArea(bed.Position, sleeper))
+                .Where(bed =>
+                    sleeper.Map.reachability.CanReach(sleeper.Position, new LocalTargetInfo(bed), Verse.AI.PathEndMode.OnCell, TraverseParms.For(sleeper))
+                    && ForbidUtility.InAllowedArea(bed.Position, sleeper))
                 .ToList();
             //Log.Message("Post-check bed count: " + currentBeds.Count.ToString());
             if (currentBeds.Count > 0)
