@@ -122,6 +122,7 @@ namespace KeepBedOwnership.Patch
 
             // Unclaim bed if pawn already has one on the map of the new bed
             var pawnBeds = Helpers.PawnBedsOnMap(___pawn, newBed.Map);
+            pawnBeds.RemoveAll(p => p.def.defName == "DeathrestCasket");
             if (pawnBeds.Any())
             {
                 Helpers.UnclaimBeds(___pawn, pawnBeds, ref ___intOwnedBed);
